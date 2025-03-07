@@ -27,7 +27,6 @@ PyWin32 | Pillow | Kimi-API | JSON
 bash
 pip install -r requirements.txt
 ```
-# 需单独安装 Tesseract OCR（配置到系统PATH）
 2. PixPin配置：
 
 - 设置区域截图快捷键为 Alt+1
