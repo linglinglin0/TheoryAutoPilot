@@ -23,6 +23,7 @@ import win32clipboard  # 需要安装pywin32
 填空题和开不开下面的任务栏有关系
 错误处理机制，如果两次检测到的东西相似度很高，就等一下再进行扫描
 '''
+global_new_questions = []  # 新增全局变量
 def copy_text(text):
     win32clipboard.OpenClipboard()
     win32clipboard.EmptyClipboard()
@@ -518,6 +519,8 @@ def main():
                 result_keys = ['A','B','C']
             elif question_num!= None and question_num == 128:
                 result_keys = ['A','B','C']
+            elif question_num!= None and question_num == 121:
+                result_keys = ['A','B','C']
             elif question_num!= None and question_num == 53:
                 result_keys = ['A','C','D']
             elif question_num!= None and question_num == 61:
@@ -546,6 +549,15 @@ def main():
             result_keys = fuzzy_match(answer_text, choices_dic)
             print('根据程序匹配到的选项为：')
             print(result_keys)
+            # 新增代码：保存题目和答案到临时列表
+            new_question = {
+                "question_type": question_type,
+                "question_text": wenben_text,
+                "correct_answer": [choices_dic[key] for key in result_keys if key in choices_dic]
+            }
+            global global_new_questions
+            global_new_questions.append(new_question)
+
         if 'A' in result_keys:
             pyautogui.click(dic_single['A'])
             count = 4
@@ -585,7 +597,9 @@ def cmd_main():
             main()
             time.sleep(args.st)
             print(f'第{i + 1}题完成\n')
-        # update_bank()
+        updata_json(global_new_questions)
+        number_corrected()
+        print("题库更新完成！")
     elif args.action == 'b':
         print("执行更新题库")
         update_bank()
