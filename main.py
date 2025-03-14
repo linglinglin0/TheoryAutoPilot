@@ -529,12 +529,18 @@ def main():
                 result_keys = ['B','C','D']
             elif question_num!= None and question_num == 25:
                 result_keys = ['A','B','D']
+            elif question_num!= None and question_num == 96:
+                result_keys = ['A','B','D']
+            elif question_num!= None and question_num == 155:
+                result_keys = ['A','B','D']
             elif question_num!= None and question_num == 221:
                 result_keys = ['C']
             elif question_num!= None and question_num == 264:
                 result_keys = ['A','B']
             elif question_num!= None and question_num == 243:
                 result_keys = ['B','C']
+            elif question_num!= None and question_num == 132:
+                result_keys = ['B']
             else:
                 result_keys = fuzzy_match(answer_text, choices_dic) 
             
