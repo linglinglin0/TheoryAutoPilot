@@ -525,6 +525,8 @@ def main():
                 result_keys = ['A','C','D']
             elif question_num!= None and question_num == 61:
                 result_keys = ['A']
+            elif question_num!= None and question_num == 251:
+                result_keys = ['D']
             elif question_num!= None and question_num == 63:
                 result_keys = ['B','C','D']
             elif question_num!= None and question_num == 25:
