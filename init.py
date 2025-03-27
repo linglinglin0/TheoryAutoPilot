@@ -29,7 +29,7 @@ def init_pw(account, password):
     time.sleep(0.5)
     pyautogui.press('enter')
 
-def select_and_login():
+def select_and_login(account_index=None):
     try:
         with open('config.json', 'r', encoding='utf-8') as file:
             config = json.load(file)
@@ -42,7 +42,12 @@ def select_and_login():
                     print(f"{i}. {account}")
 
                 try:
-                    choice = int(input("请输入要使用的账号序号: "))
+                    # 修改开始：优先使用传入参数
+                    if account_index is None:
+                        choice = int(input("请输入要使用的账号序号: "))
+                    else:
+                        choice = account_index
+                    # 修改结束
                     if 1 <= choice <= len(accounts):
                         selected_account_info = accounts[choice - 1]
                         account = selected_account_info.get('account')

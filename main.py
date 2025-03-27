@@ -4,7 +4,7 @@ import difflib
 import pyautogui
 import pyscreeze
 import pytesseract
-import pyperclip
+import win32clipboard  # 需要安装pywin32
 import pydirectinput
 import time
 from PIL import ImageColor
@@ -12,28 +12,27 @@ import re
 import json
 from kimi import main_kimi
 from number_corrected import number_corrected
+from init import select_and_login
 # 配置PixPin快捷键
 SCREENSHOT_HOTKEY = ['alt', '1']  # 区域截图快捷键
 OCR_HOTKEY = ['shift', 'c']       # OCR快捷键
 submit_HOTKEY = ['tab','space']
-# 定义截图区域（根据实际屏幕调整）
-import win32clipboard  # 需要安装pywin32
-'''
-填空题出问题是因为剪贴板和pixpin有冲突
-填空题和开不开下面的任务栏有关系
-错误处理机制，如果两次检测到的东西相似度很高，就等一下再进行扫描
-'''
-global_new_questions = []  # 新增全局变量
+# 全局变量
+global global_new_questions   
+global_new_questions = []
+
 def copy_text(text):
     win32clipboard.OpenClipboard()
     win32clipboard.EmptyClipboard()
     win32clipboard.SetClipboardText(text, win32clipboard.CF_UNICODETEXT)
     win32clipboard.CloseClipboard()
+
 def paste_text():
     win32clipboard.OpenClipboard()
     data = win32clipboard.GetClipboardData(win32clipboard.CF_UNICODETEXT)
     win32clipboard.CloseClipboard()
     return data
+
 def trigger_pixpin_screenshot():
     """触发PixPin截图并截取指定区域"""
     # 移动鼠标到区域左上角，确保截图范围正确
@@ -62,6 +61,7 @@ def locate(question_type):
         return (asset_x, asset_y)
     else:
         print("图片未找到！")
+
 def check_position(text):
     # 初始化位置
     pos_dui = -1  # “对”的位置
@@ -84,19 +84,21 @@ def check_position(text):
     else:
         # “错”出现在“对”之后
         return False
+    
 def is_similar(str1, str2, threshold=0.7):
     # 创建一个SequenceMatcher对象
     matcher = difflib.SequenceMatcher(None, str1, str2)
     similarity_ratio = matcher.ratio()
     return similarity_ratio >= threshold,similarity_ratio
+
 def extract_options(text):
     # 使用正则表达式匹配选项
     pattern = r'([A-D])\.([^\n]+)'
     matches = re.findall(pattern, text)
-    
     # 将匹配结果转换为字典
     options_dict = {option: content.strip() for option, content in matches}
     return options_dict
+
 def select_correlation(question_text,test_bank):
     length = len(test_bank)
     max_similarity = 0
@@ -107,10 +109,10 @@ def select_correlation(question_text,test_bank):
             max_similarity = similarity_ratio
             max_index = i
             print(f"找到了更相似的题目,题号为{i+1}：{test_bank[i]['question_text']}")
-
     if max_index is not None:
             return max_index+1," ".join(test_bank[max_index]['correct_answer'])
     return None,None
+
 def read_json_file(filepath):
     with open(filepath, 'r', encoding='utf-8') as file:
         data = json.load(file)
@@ -128,11 +130,13 @@ def get_option_coords(option, region):
             y = data['top'][i] + region[1]
             return (x, y)
     return None
+
 def get_key_by_value(my_dict, value):
     for key, val in my_dict.items():
         if val == value:
             return key
     return None  # 如果没有找到匹配的值
+
 def fuzzy_match(answer_text, choices_dict):
     answers = answer_text.split(' ')
     values = choices_dict.values()
@@ -142,13 +146,14 @@ def fuzzy_match(answer_text, choices_dict):
         # 使用replace 将answer中的空格替换为''
         answer = answer.replace(' ', '')
         print(answer)
-        match = difflib.get_close_matches(answer, values, n=1, cutoff=0.6)
+        match = difflib.get_close_matches(answer, values, n=1, cutoff=0.8)
         print(match)
         if not match:
             continue
         key = get_key_by_value(choices_dict, match[0])
         result_keys.append(key)
     return result_keys
+
 def find_color_on_screen(color, region=(0, 0, 1920, 1080)):
     """
     在屏幕上查找指定颜色的位置。
@@ -177,10 +182,12 @@ def find_color_on_screen(color, region=(0, 0, 1920, 1080)):
                     return (x+330,y+50)
     print(count)
     return None
+
 def remove_timestamp(text):
     # 使用正则表达式匹配开头的时间信息并去掉
     pattern = r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2} '
     return re.sub(pattern, '', text)
+
 def extract_question(text,quesion_type):
 # 第一步：删除指定关键词
     # 处理题目类型
@@ -235,6 +242,7 @@ def extract_question(text,quesion_type):
     # 最后去除result里面的回车
     # result = re.sub(r'\n', '', result)
     return result
+
 def input_string(text):
     """
     使用pyautogui输入指定字符串。
@@ -356,6 +364,7 @@ def extract_correct_answer(block, q_type, options):
     if match and (key := match.group(1)) in options:
         return options[key]
     return ""
+
 def extract_wenben(text):
     pattern = r'^(.*?)(?=[A-D]\.)'
     match = re.search(pattern, text, re.DOTALL)
@@ -381,7 +390,6 @@ def updata_json(question_dict):
     # 遍历question_dict里面的字典，如果题干存在于questions里面  
     # 则说明该题目已经存在，则跳过，否则添加到questions里面
     # 并记录新题目数
-
     for question_dic in question_dict:
         exists = False
         for question in questions:
@@ -398,6 +406,7 @@ def updata_json(question_dict):
         print(f"共有{count}个新题目已添加到 JSON 文件！")
     except Exception as e:
         print(f"写入文件时发生错误: {e}")
+
 def update_bank():
     pyautogui.click(x=710,y=826)
     time.sleep(0.5)
@@ -417,6 +426,7 @@ def update_bank():
     updata_json(question_dict)
     number_corrected()
     print("题库更新完成！")
+
 def drag_copy():
     # pyautogui 实现从1286,1178到1492,1178拖拽
     pyautogui.click(1286, 1541)
@@ -427,8 +437,12 @@ def drag_copy():
     pydirectinput.keyUp('ctrl')
     time.sleep(0.5)
     # 粘贴
-    x,y = find_color_on_screen('#FCF8E3')
-    pyautogui.click(x, y)
+    # x,y = find_color_on_screen('#FCF8E3')
+    # pyautogui.click(x, y)
+    pyautogui.click(713, 953)
+    time.sleep(0.5)
+    pydirectinput.press('tab')
+    time.sleep(0.5)
     pyautogui.hotkey('ctrl', 'v')
     time.sleep(0.5)
 
@@ -456,10 +470,38 @@ def get_four_option_question_numbers():
     return four_option_question_numbers
 
 # 调用函数并打印结果
-result = get_four_option_question_numbers()
-print(result)
 
-def main():
+def refresh():
+    pyautogui.click(x=1215, y=97)
+    time.sleep(1)
+    pyautogui.click(x=453, y=1424)
+    time.sleep(5)
+
+def correct_mistake():
+    # 点击错题本
+    pyautogui.click(x=600, y=803)
+    time.sleep(1)
+    update_bank()
+    time.sleep(1)
+
+def back_to_interface():
+    # 点击返回按钮
+    pyautogui.click(x=529, y=842)
+    time.sleep(1)
+
+def enter_to_answer():
+    # 点击进入答题按钮
+    time.sleep(2)
+    pyautogui.click(x=611, y=697)
+    time.sleep(3)
+    pyautogui.click(x=635, y=901)
+
+def back_to_load():
+    pyautogui.click(x=625, y=1082)
+    time.sleep(1)
+    print("回到登陆界面")
+
+def main(error_flag=False):
     # Step 1: 识别题目
     trigger_pixpin_screenshot()
     question_text = trigger_pixpin_ocr()
@@ -487,6 +529,7 @@ def main():
         # 定位题目图片并点击
         drag_copy()
         # 粘贴
+        time.sleep(2)
         pydirectinput.press('tab')
         pydirectinput.press('space')
     else:
@@ -505,8 +548,11 @@ def main():
         else:
             dic_single = {'A':(asset_x,asset_y),'B':(asset_x+114,asset_y),'C':(asset_x+2*114,asset_y),'D':(asset_x+3*114,asset_y)}
         try:
+            
             if question_num in result_4choices_qn:
                 result_keys = ['A','B','C','D']
+            elif error_flag:
+                result_keys = ['A']
             elif question_num!= None and question_num == 158:
                 result_keys = ['A','B','C']
             elif question_num!= None and question_num == 168:
@@ -514,6 +560,8 @@ def main():
             elif question_num!= None and question_num == 202:
                 result_keys = ['A','B','D']
             elif question_num!= None and question_num == 119:
+                result_keys = ['A','B','C']
+            elif question_num!= None and question_num == 319:
                 result_keys = ['A','B','C']
             elif question_num!= None and question_num == 285:
                 result_keys = ['A','B','C']
@@ -565,9 +613,30 @@ def main():
                 result_keys = ['B']
             elif question_num!= None and question_num == 275:
                 result_keys = ['B']
+            elif question_num!= None and question_num == 317:
+                result_keys = ['A','C']
             else:
                 result_keys = fuzzy_match(answer_text, choices_dic) 
-            
+                #如果result_keys是空列表
+                if not result_keys:
+                    ask_text = '请填写下面文字中括号内的内容，只输出答案,如果有多个答案，请用空格分隔。要求给出的答案放在原句子中要能在联网搜索中找到完全相同的句子。请填写下面文字中括号内的内容，' \
+                        '只输出答案不要输出‘ABCD’,如果有多个答案，请用空格分隔。要求给出的答案放在原句子中要能在联网搜索中找到完全相同的句子。同时，我这里有四个备选选项' \
+                        + str(choices_dic.values()) + question_text
+                    # time.sleep(2)
+                    answer_text, cost = main_kimi(ask_text)
+                    print('kimi模型输出的答案为：',answer_text)
+                    result_keys = fuzzy_match(answer_text, choices_dic)
+                    print('根据程序匹配到的选项为：')
+                    print(result_keys)
+                    # 新增代码：保存题目和答案到临时列表
+                    new_question = {
+                        "question_type": question_type,
+                        "question_text": wenben_text,
+                        "correct_answer": [choices_dic[key] for key in result_keys if key in choices_dic]
+                    }
+                    # global global_new_questions
+                    global_new_questions.append(new_question)
+                    updata_json(global_new_questions)
         except:
             print('程序匹配到的选项为空，请检查题目选项是否正确')
             ask_text = '请填写下面文字中括号内的内容，只输出答案,如果有多个答案，请用空格分隔。要求给出的答案放在原句子中要能在联网搜索中找到完全相同的句子。请填写下面文字中括号内的内容，' \
@@ -585,8 +654,9 @@ def main():
                 "question_text": wenben_text,
                 "correct_answer": [choices_dic[key] for key in result_keys if key in choices_dic]
             }
-            global global_new_questions
+            # global global_new_questions
             global_new_questions.append(new_question)
+            updata_json(global_new_questions)
 
         if 'A' in result_keys:
             pyautogui.click(dic_single['A'])
@@ -616,11 +686,12 @@ def main():
         # time.sleep(0.5)
 def cmd_main():
     parser = argparse.ArgumentParser(description='处理命令行参数')
-    parser.add_argument('action', choices=['a', 'b'], help='要执行的操作')
+    parser.add_argument('action', choices=['a', 'b', 'c'], help='要执行的操作')
     parser.add_argument('--st', type=float, default=1, help='做题时每次操作间隔时间（秒），默认为1s')
     parser.add_argument('--qn', type=int, default=10, help='要回答的题目数量，默认为10')
+    parser.add_argument('--tp', type=int, default=4, help='要回答的题目数量，默认为10')
     args = parser.parse_args()
-
+    # 让situ控制循环的进行，然后循环里面使用situ来进入不同的情况，如果是奇数，那么就是正常的做10题，每做一题更新一次题库，然后返回页面，重新开始做题，如果是偶数，那么就是退回到界面，退出账号，重新开始做题
     if args.action == 'a':
         print("执行完整程序")
         for i in range(args.qn):
@@ -633,7 +704,68 @@ def cmd_main():
     elif args.action == 'b':
         print("执行更新题库")
         update_bank()
-
+    elif args.action == 'c':
+        ct = 0
+        situ = 0
+        error_ct = 0
+        flag = True
+        # 前面还是要执行初始化操作，算了到时候再想
+        while True:
+            if situ % 2 == 0 and situ != 0 and flag == False:
+                print('执行退回到界面')
+                time.sleep(10)
+                back_to_interface()
+                print('更新错题')
+                correct_mistake()
+                refresh()
+                time.sleep(3)
+                print('执行退出账号')
+                back_to_load()
+                time.sleep(1)
+                select_and_login((situ // 2)+1)
+                print(f'登陆第{(situ // 2)+1}个账号')
+                time.sleep(1)
+                enter_to_answer()
+                flag = True
+            elif ct > 2*args.tp*10:
+                print('程序执行完毕')
+                number_corrected()
+                print('题库更新完成')
+                break
+            elif situ % 2 == 1 and flag == False:
+                print('退回到开始界面')
+                time.sleep(12)
+                back_to_interface()
+                time.sleep(1)
+                enter_to_answer()
+                flag = True
+            
+            else:
+                try:
+                    time.sleep(2)
+                    main()
+                    ct += 1
+                    new_situ = ct // 10
+                    if new_situ != situ:
+                        flag = False
+                        situ = new_situ
+                    # flag = False 问题是这样的，如果进了前面两个判断就会出不来，因为situ一直是1，但是我们其实是识别到situ有一个从0-1的突变，我们才进入这个循环
+                    time.sleep(args.st)
+                    print(f'第{ct}题完成\n')
+                except:
+                    print('程序出错，继续进行')
+                    time.sleep(1)
+                    error_ct += 1
+                    if error_ct > 2:
+                        print('程序出错次数过多，随机选择')
+                        main(True)
+                        error_ct = 0
+                        ct += 1
+                        new_situ = ct // 10
+                        if new_situ != situ:
+                            flag = False
+                            situ = new_situ
+                    continue
 if __name__ == "__main__":
     cmd_main()
 # 命令行使用示例
